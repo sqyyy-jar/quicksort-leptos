@@ -1,14 +1,18 @@
-use leptos::{svg::text, *};
+use leptos::*;
 
 pub struct Frame {
     pub left: isize,
     pub right: isize,
+    pub full: Option<FullFrame>,
+}
+
+pub struct FullFrame {
     /// The array before the recursive calls
-    pub result: Option<Vec<i64>>,
+    pub result: Vec<i64>,
     /// The final pivot index
-    pub pivot: Option<isize>,
+    pub pivot: isize,
     /// The two child frames
-    pub children: Option<Box<[Frame; 2]>>,
+    pub children: Box<[Frame; 2]>,
 }
 
 impl Frame {
@@ -16,9 +20,7 @@ impl Frame {
         Self {
             left,
             right,
-            result: None,
-            pivot: None,
-            children: None,
+            full: None,
         }
     }
 
@@ -32,26 +34,28 @@ impl Frame {
         Self {
             left,
             right,
-            result: Some(result),
-            pivot: Some(pivot),
-            children: Some(children),
+            full: Some(FullFrame {
+                result,
+                pivot,
+                children,
+            }),
         }
     }
 
     /// Counts the amount of frames
     pub fn count(&self) -> usize {
         1 + self
-            .children
+            .full
             .as_ref()
-            .map(|children| children[0].count() + children[1].count())
+            .map(|full| full.children.iter().map(Frame::count).sum())
             .unwrap_or(0)
     }
 
     /// Gets the highest recursion depth
     pub fn max_depth(&self, depth: usize) -> usize {
         let depth = depth + 1;
-        match &self.children {
-            Some(children) => children[0]
+        match &self.full {
+            Some(FullFrame { children, .. }) => children[0]
                 .max_depth(depth)
                 .max(children[1].max_depth(depth)),
             _ => depth,
@@ -59,15 +63,33 @@ impl Frame {
     }
 
     pub fn render(&self, renderer: &mut Renderer) {
+        let full = if let Some(full) = &self.full {
+            view! {
+                {full.result.iter().enumerate().map(|(i, &column)| {
+                    view! {
+                        <text x=(400 + i * 50) y=renderer.y class="text anchor-middle">{column}</text>
+                    }
+                }).collect_view()}
+                <circle cx=(400 + full.pivot * 50) cy=renderer.y class="circle" />
+            }
+            .into_view()
+        } else {
+            ().into_view()
+        };
         renderer.children.push(
-            view! { <text x=10 y=renderer.y class="text">"qS("{self.left}", "{self.right}", ...)"</text> }
-                .into_view(),
+            view! {
+                <text x=(10 + renderer.depth * 25) y=renderer.y class="text">"qS("{self.left}", "{self.right}", ...)"</text>
+                {full}
+            }
+            .into_view(),
         );
-        renderer.y += 100;
-        if let Some(children) = &self.children {
-            children[0].render(renderer);
-            children[1].render(renderer);
+        renderer.y += 50;
+        renderer.depth += 1;
+        if let Some(full) = &self.full {
+            full.children[0].render(renderer);
+            full.children[1].render(renderer);
         }
+        renderer.depth -= 1;
     }
 }
 
@@ -76,15 +98,17 @@ pub struct Renderer {
     pub y: u64,
     pub max_depth: usize,
     pub frame_count: usize,
+    pub depth: usize,
 }
 
 impl Renderer {
     pub fn new() -> Self {
         Self {
             children: Vec::new(),
-            y: 50,
+            y: 25,
             max_depth: 0,
             frame_count: 0,
+            depth: 0,
         }
     }
 
@@ -95,21 +119,16 @@ impl Renderer {
     }
 
     pub fn view_box(&self) -> String {
-        format!("0 0 {} {}", self.max_depth * 300, self.frame_count * 100)
+        format!(
+            "0 0 {} {}",
+            800 + self.max_depth * 25,
+            self.frame_count * 50
+        )
     }
 
     pub fn finish(self) -> impl IntoView {
         view! {
             <svg viewBox=self.view_box()>
-                <style>
-                r"
-                .text {
-                    font: 40px mono;
-                    fill: blue;
-                    dominant-baseline: middle;
-                }
-                "
-                </style>
                 {self.children}
             </svg>
         }
@@ -148,9 +167,18 @@ fn App() -> impl IntoView {
     let frame = quick_sort(&mut [3, 5, 2, 7, 8, 6, 1, 9, 3, 4], 0, 9);
     let mut renderer = Renderer::new();
     renderer.render(&frame);
-    renderer.finish()
+    view! {
+        <div class="app">
+            {renderer.finish()}
+        </div>
+    }
 }
 
 fn main() {
-    mount_to_body(|| view! { <App/> });
+    mount_to_body(|| {
+        view! {
+            <style>{include_str!("style.css")}</style>
+            <App/>
+        }
+    });
 }

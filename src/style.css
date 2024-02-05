@@ -1,0 +1,26 @@
+body {
+    margin: 0px;
+    padding: 0px;
+}
+
+.app {
+    height: calc(100vh - 20px);
+    padding: 10px;
+    display: flex;
+}
+
+.text {
+    font: 20px mono;
+    fill: black;
+    dominant-baseline: middle;
+}
+                               
+.circle {
+    fill: none;
+    stroke: red;
+    r: 22px;
+}
+                               
+.anchor-middle {
+    text-anchor: middle;
+}
