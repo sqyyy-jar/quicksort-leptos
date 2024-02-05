@@ -1,0 +1,12 @@
+[package]
+name = "leptos-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leptos = { version = "0.6.5", features = ["csr", "nightly"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
